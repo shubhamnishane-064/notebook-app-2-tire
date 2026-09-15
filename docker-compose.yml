@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  app:
+    build: ./app
+    container_name: notebook-app
+    ports:
+      - "8080:5000"
+    environment:
+      - DB_HOST=database
+      - DB_NAME=notebookdb
+      - DB_USER=storeuser
+      - DB_PASSWORD=storepass123
+      - DB_PORT=5432
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+  database:
+    image: postgres:15-alpine
+    container_name: notebook-db
+    environment:
+      - POSTGRES_USER=storeuser
+      - POSTGRES_PASSWORD=storepass123
+      - POSTGRES_DB=notebookdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U storeuser -d notebookdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  adminer:
+    image: adminer:latest
+    container_name: notebook-adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      - database
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  pgdata:

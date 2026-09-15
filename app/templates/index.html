@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notebook Store - Save to Database</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.85);
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full { grid-column: 1 / -1; }
+        label {
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.9em;
+        }
+        input, textarea {
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        textarea { resize: vertical; min-height: 80px; }
+        .btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-delete {
+            background: #fc8181;
+            color: white;
+            padding: 6px 14px;
+            font-size: 14px;
+        }
+        .btn-delete:hover { background: #f56565; }
+        .notebook-list { display: flex; flex-direction: column; gap: 12px; }
+        .notebook-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+        .notebook-item:hover {
+            background: #eef1ff;
+            transform: translateX(5px);
+        }
+        .notebook-info { flex: 1; }
+        .notebook-title {
+            font-size: 1.15em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .notebook-brand {
+            color: #667eea;
+            font-size: 0.9em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .notebook-meta {
+            color: #888;
+            font-size: 0.85em;
+            margin-top: 6px;
+        }
+        .notebook-price {
+            font-size: 1.4em;
+            font-weight: 800;
+            color: #667eea;
+            margin-right: 15px;
+        }
+        .notebook-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .empty-state .icon { font-size: 4em; margin-bottom: 15px; opacity: 0.5; }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease-out;
+            z-index: 1000;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .toast.success { background: #48bb78; }
+        .toast.error { background: #fc8181; }
+        .db-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            background: #c6f6d5;
+            color: #22543d;
+            margin-left: 10px;
+        }
+        .db-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #38a169;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .count-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7em;
+            font-weight: 600;
+            margin-left: auto;
+        }
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+            h1 { font-size: 1.8em; }
+            .card { padding: 20px; }
+            .notebook-item { flex-direction: column; align-items: flex-start; gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📓 Notebook Store</h1>
+        <p class="subtitle">Add a notebook → It saves to PostgreSQL database!</p>
+
+        <div class="card">
+            <h2>
+                ➕ Add New Notebook In Your
+                <span class="db-status">
+                    <span class="dot"></span>
+                    Library
+                </span>
+            </h2>
+            <form id="notebookForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Title *</label>
+                        <input type="text" id="title" placeholder="e.g., Classic Ruled Notebook" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Brand *</label>
+                        <input type="text" id="brand" placeholder="e.g., Moleskine" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Price (₹) *</label>
+                        <input type="number" id="price" step="0.01" placeholder="899.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Pages</label>
+                        <input type="number" id="pages" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Stock</label>
+                        <input type="number" id="stock" value="10">
+                    </div>
+                    <div class="form-group full">
+                        <label>Description</label>
+                        <textarea id="description" placeholder="Short description..."></textarea>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    💾 Save to Database
+                </button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>
+                📚 Notebooks in Database
+                <span class="count-badge" id="countBadge">0</span>
+            </h2>
+            <div id="notebookList" class="notebook-list">
+                <div class="empty-state">
+                    <div class="icon">📖</div>
+                    <p>Loading notebooks...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/notebooks';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadNotebooks();
+        });
+
+        async function loadNotebooks() {
+            const list = document.getElementById('notebookList');
+            try {
+                const response = await fetch(API_URL);
+                const notebooks = await response.json();
+
+                document.getElementById('countBadge').textContent = notebooks.length;
+
+                if (notebooks.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No notebooks yet. Add one above!</p></div>';
+                    return;
+                }
+
+                list.innerHTML = notebooks.map(nb => `
+                    <div class="notebook-item">
+                        <div class="notebook-info">
+                            <div class="notebook-brand">${nb.brand}</div>
+                            <div class="notebook-title">${nb.title}</div>
+                            <div class="notebook-meta">
+                                📄 ${nb.pages} pages • 📦 Stock: ${nb.stock} •
+                                🕐 ${new Date(nb.created_at).toLocaleDateString()}
+                            </div>
+                        </div>
+                        <div class="notebook-actions">
+                            <div class="notebook-price">₹${parseFloat(nb.price).toFixed(2)}</div>
+                            <button class="btn btn-delete" onclick="deleteNotebook(${nb.id})">🗑 Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                list.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>Failed to load: ${error.message}</p></div>`;
+            }
+        }
+
+        document.getElementById('notebookForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = '💾 Saving...';
+
+            const data = {
+                title: document.getElementById('title').value.trim(),
+                brand: document.getElementById('brand').value.trim(),
+                price: parseFloat(document.getElementById('price').value),
+                pages: parseInt(document.getElementById('pages').value) || 100,
+                stock: parseInt(document.getElementById('stock').value) || 0,
+                description: document.getElementById('description').value.trim()
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Failed to save');
+                }
+
+                const saved = await response.json();
+                showToast(`✅ "${saved.title}" saved to database!`, 'success');
+                e.target.reset();
+                document.getElementById('pages').value = 100;
+                document.getElementById('stock').value = 10;
+                loadNotebooks();
+            } catch (error) {
+                showToast(`❌ ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💾 Save to Database';
+            }
+        });
+
+        async function deleteNotebook(id) {
+            if (!confirm('Delete this notebook from database?')) return;
+            try {
+                const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showToast('🗑 Notebook deleted', 'success');
+                    loadNotebooks();
+                }
+            } catch (error) {
+                showToast(`❌ ${error.message}`, 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
